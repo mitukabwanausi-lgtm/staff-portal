@@ -35,7 +35,7 @@
         </div>
     </div>
     <script>
-        const CONFIG={SPREADSHEET_ID:'1ThGIfHzYItUgXWmFTgjdezFP7kvGCGfNI0MJzf95dzQ',API_KEY:'AIzaSyB-E04YmXkYo2iaKD5pVaRH2_ENWmlX__Y',SCRIPT_URL:'https://script.google.com/macros/s/AKfycbwbxi62NWMPz3IkiWA0XaqT4AP0xVU8imoU2SFp-sSNF0x1Yh6yJL6SRkPJ0GKrivDL/exec',SHEET_NAME:'Master Job List',AUTO_REFRESH_MINUTES:2};
+        const CONFIG={SPREADSHEET_ID:'1ThGIfHzYItUgXWmFTgjdezFP7kvGCGfNI0MJzf95dzQ',API_KEY:'AIzaSyClXOD97fX54o2RNIDsYeOgkOR1Xl3V7eU',SCRIPT_URL:'https://script.google.com/macros/s/AKfycbwbxi62NWMPz3IkiWA0XaqT4AP0xVU8imoU2SFp-sSNF0x1Yh6yJL6SRkPJ0GKrivDL/exec',SHEET_NAME:'Master Job List',AUTO_REFRESH_MINUTES:2};
         const TOKEN_MAP={'k8m3p9x2w5':'Ben','q7n4j1b8r6':'Antonio','v2h9f5l3d8':'Anthony','z5t6m2k9p4':'Rudy'};
         let staffName='';let jobs=[];let validToken=false;
         function getStaffName(){const params=new URLSearchParams(window.location.search);const token=params.get('token');if(token&&TOKEN_MAP[token]){staffName=TOKEN_MAP[token];validToken=true;document.getElementById('staffNameHeader').textContent=staffName+"'s Jobs";}else{validToken=false;document.getElementById('jobsContainer').innerHTML='<div class="bg-red-50 border border-red-200 rounded-lg p-12 text-center"><svg class="w-16 h-16 text-red-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg><h2 class="text-xl font-semibold text-red-800 mb-2">Access Denied</h2><p class="text-red-600">Invalid or missing access token. Please use the link provided by your manager.</p></div>';}}
