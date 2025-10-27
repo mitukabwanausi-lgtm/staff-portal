@@ -38,6 +38,47 @@
             </div>
         </div>
     </div>
+
+    <!-- Payment Modal -->
+    <div id="paymentModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <h2 class="text-xl font-bold text-gray-900 mb-4">Complete Job - Enter Payment</h2>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Amount Paid ($)</label>
+                    <input type="number" id="amountPaid" step="0.01" placeholder="Enter amount" 
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Payment Method</label>
+                    <div class="space-y-2">
+                        <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="radio" name="paymentMethod" value="Cash" checked class="w-4 h-4 text-green-600">
+                            <span class="ml-3 text-gray-900">Cash</span>
+                        </label>
+                        <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="radio" name="paymentMethod" value="Bank Transfer" class="w-4 h-4 text-green-600">
+                            <span class="ml-3 text-gray-900">Bank Transfer</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex gap-3 mt-6">
+                <button onclick="closePaymentModal()" 
+                        class="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium transition-colors">
+                    Cancel
+                </button>
+                <button onclick="submitCompletion()" 
+                        class="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors">
+                    Complete Job
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const CONFIG = {
             SPREADSHEET_ID: '1ThGIfHzYItUgXWmFTgjdezFP7kvGCGfNI0MJzf95dzQ',
@@ -55,6 +96,7 @@
         let staffName = '';
         let currentJob = null;
         let validToken = false;
+        let pendingCompletionRow = null;
         
         function getStaffName() {
             const params = new URLSearchParams(window.location.search);
@@ -83,14 +125,12 @@
             refreshIcon.classList.add('animate-spin');
             
             try {
-                const range = `${CONFIG.SHEET_NAME}!A2:K`;
+                const range = `${CONFIG.SHEET_NAME}!A2:M`;
                 const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/${range}?key=${CONFIG.API_KEY}`;
                 const response = await fetch(url);
                 const data = await response.json();
                 
                 if (data.values) {
-                    // Filter jobs for this staff member where status is not "Completed"
-                    // Keep them in sheet order (top to bottom)
                     const staffJobs = data.values
                         .map((row, index) => ({
                             rowNumber: index + 2,
@@ -104,7 +144,9 @@
                             description: row[7] || '',
                             assignedTo: row[8] || '',
                             status: row[9] || 'Assigned',
-                            photosLink: row[10] || ''
+                            photosLink: row[10] || '',
+                            amountPaid: row[11] || '',
+                            paymentMethod: row[12] || ''
                         }))
                         .filter(job => {
                             const assignedTo = job.assignedTo || '';
@@ -113,7 +155,6 @@
                                    status.toLowerCase() !== 'completed';
                         });
                     
-                    // Show ONLY the first job (top-most incomplete job in sheet order)
                     currentJob = staffJobs.length > 0 ? staffJobs[0] : null;
                     renderJob();
                 } else {
@@ -200,7 +241,7 @@
                         ` : ''}
                         
                         ${showCompleteButton ? `
-                            <button onclick="updateStatus(${currentJob.rowNumber}, 'Completed')" 
+                            <button onclick="openPaymentModal(${currentJob.rowNumber})" 
                                     class="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors">
                                 Mark Complete
                             </button>
@@ -210,15 +251,66 @@
             `;
         }
         
+        function openPaymentModal(rowNumber) {
+            pendingCompletionRow = rowNumber;
+            document.getElementById('amountPaid').value = '';
+            document.querySelector('input[name="paymentMethod"][value="Cash"]').checked = true;
+            document.getElementById('paymentModal').classList.remove('hidden');
+        }
+        
+        function closePaymentModal() {
+            document.getElementById('paymentModal').classList.add('hidden');
+            pendingCompletionRow = null;
+        }
+        
+        async function submitCompletion() {
+            const amountPaid = document.getElementById('amountPaid').value;
+            const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
+            
+            if (!amountPaid || amountPaid <= 0) {
+                alert('Please enter a valid amount paid.');
+                return;
+            }
+            
+            closePaymentModal();
+            
+            try {
+                if (currentJob && currentJob.rowNumber === pendingCompletionRow) {
+                    currentJob.status = 'Completed';
+                    renderJob();
+                }
+                
+                await fetch(CONFIG.SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        rowNumber: pendingCompletionRow,
+                        status: 'Completed',
+                        amountPaid: amountPaid,
+                        paymentMethod: paymentMethod,
+                        staffName: staffName
+                    })
+                });
+                
+                setTimeout(() => {
+                    loadJobs();
+                }, 1500);
+                
+            } catch (error) {
+                console.error('Error updating status:', error);
+                alert('Failed to complete job. Please try again or contact your manager.');
+                loadJobs();
+            }
+        }
+        
         async function updateStatus(rowNumber, newStatus) {
             try {
-                // Update UI immediately
                 if (currentJob && currentJob.rowNumber === rowNumber) {
                     currentJob.status = newStatus;
                     renderJob();
                 }
                 
-                // Send update to Google Sheets
                 await fetch(CONFIG.SCRIPT_URL, {
                     method: 'POST',
                     mode: 'no-cors',
@@ -230,8 +322,6 @@
                     })
                 });
                 
-                // Reload jobs after a short delay
-                // If status is "Completed", next job will appear
                 setTimeout(() => {
                     loadJobs();
                 }, 1500);
