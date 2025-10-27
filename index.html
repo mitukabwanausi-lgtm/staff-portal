@@ -284,10 +284,10 @@
             closePaymentModal();
             
             try {
-                // Update UI immediately
+                // Remove completed job from UI immediately
                 const jobIndex = jobs.findIndex(j => j.rowNumber === pendingCompletionRow);
                 if (jobIndex !== -1) {
-                    jobs[jobIndex].status = 'Completed';
+                    jobs.splice(jobIndex, 1); // Remove from array
                     renderJobs();
                 }
                 
@@ -304,9 +304,10 @@
                     })
                 });
                 
+                // Reload after longer delay to confirm server update
                 setTimeout(() => {
                     loadJobs();
-                }, 1500);
+                }, 2500);
                 
             } catch (error) {
                 console.error('Error updating status:', error);
