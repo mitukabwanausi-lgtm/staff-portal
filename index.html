@@ -5,7 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Staff Job Viewer</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>.job-detail{font-family:'Courier New',monospace;}</style>
+    <style>
+        .job-detail {
+            font-family: 'Courier New', monospace;
+        }
+    </style>
 </head>
 <body class="bg-gray-50">
     <div id="app">
@@ -35,15 +39,223 @@
         </div>
     </div>
     <script>
-        const CONFIG={SPREADSHEET_ID:'1ThGIfHzYItUgXWmFTgjdezFP7kvGCGfNI0MJzf95dzQ',API_KEY:'AIzaSyClXOD97fX54o2RNIDsYeOgkOR1Xl3V7eU',SCRIPT_URL:'https://script.google.com/macros/s/AKfycbwbxi62NWMPz3IkiWA0XaqT4AP0xVU8imoU2SFp-sSNF0x1Yh6yJL6SRkPJ0GKrivDL/exec',SHEET_NAME:'Master Job List',AUTO_REFRESH_MINUTES:2};
-        const TOKEN_MAP={'k8m3p9x2w5':'Ben','q7n4j1b8r6':'Antonio','v2h9f5l3d8':'Anthony','z5t6m2k9p4':'Rudy'};
-        let staffName='';let jobs=[];let validToken=false;
-        function getStaffName(){const params=new URLSearchParams(window.location.search);const token=params.get('token');if(token&&TOKEN_MAP[token]){staffName=TOKEN_MAP[token];validToken=true;document.getElementById('staffNameHeader').textContent=staffName+"'s Jobs";}else{validToken=false;document.getElementById('jobsContainer').innerHTML='<div class="bg-red-50 border border-red-200 rounded-lg p-12 text-center"><svg class="w-16 h-16 text-red-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg><h2 class="text-xl font-semibold text-red-800 mb-2">Access Denied</h2><p class="text-red-600">Invalid or missing access token. Please use the link provided by your manager.</p></div>';}}
-        async function loadJobs(){if(!validToken)return;const refreshIcon=document.getElementById('refreshIcon');refreshIcon.classList.add('animate-spin');try{const range=`${CONFIG.SHEET_NAME}!A2:K`;const url=`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/${range}?key=${CONFIG.API_KEY}`;const response=await fetch(url);const data=await response.json();if(data.values){jobs=data.values.filter(row=>{const assignedTo=row[8]||'';const status=row[9]||'Assigned';return assignedTo.toLowerCase()===staffName.toLowerCase()&&status.toLowerCase()!=='completed';}).map((row,index)=>({rowNumber:index+2,date:row[0]||'',time:row[1]||'',price:row[2]||'',name:row[3]||'',phone:row[4]||'',email:row[5]||'',location:row[6]||'',description:row[7]||'',assignedTo:row[8]||'',status:row[9]||'Assigned',photosLink:row[10]||''}));renderJobs();}else{jobs=[];renderJobs();}const now=new Date();document.getElementById('lastUpdate').textContent=`Last updated: ${now.toLocaleTimeString()}`;}catch(error){console.error('Error loading jobs:',error);document.getElementById('jobsContainer').innerHTML='<div class="bg-red-50 border border-red-200 rounded-lg p-6 text-center"><p class="text-red-800 font-semibold">Error loading jobs</p><p class="text-red-600 text-sm mt-2">'+error.message+'</p><p class="text-red-600 text-sm mt-1">Please check your internet connection and try again.</p></div>';}finally{refreshIcon.classList.remove('animate-spin');}}
-        function renderJobs(){const container=document.getElementById('jobsContainer');if(jobs.length===0){container.innerHTML='<div class="bg-white rounded-lg shadow-sm p-12 text-center"><svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><h2 class="text-xl font-semibold text-gray-700 mb-2">No Active Jobs</h2><p class="text-gray-500">You\'re all caught up! Check back later for new assignments.</p></div>';return;}const jobsHTML=jobs.map((job,index)=>{const statusColor=getStatusColor(job.status);const showStartButton=job.status==='Assigned'||job.status==='';const showCompleteButton=job.status==='In Progress';return`<div class="bg-white rounded-lg shadow-sm p-6 border border-gray-200 mb-4"><div class="flex items-center justify-between mb-4"><span class="px-3 py-1 rounded-full text-xs font-medium ${statusColor}">${job.status||'Assigned'}</span><span class="text-sm text-gray-500">Job #${index+1}</span></div><div class="space-y-2 job-detail text-sm"><div><span class="font-semibold">Date:</span> ${job.date}</div><div><span class="font-semibold">Time:</span> ${job.time}</div><div><span class="font-semibold">Price:</span> ${job.price}</div><div><span class="font-semibold">Phone Number:</span> ${job.phone}</div><div><span class="font-semibold">Name:</span> ${job.name}</div><div><span class="font-semibold">Location:</span> ${job.location}</div><div class="pt-2"><span class="font-semibold">Job Description:</span><p class="mt-1 text-gray-700 whitespace-pre-wrap">${job.description}</p></div></div><div class="flex gap-3 mt-6 pt-4 border-t border-gray-200">${job.photosLink?`<a href="${job.photosLink}" target="_blank" rel="noopener noreferrer" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-center font-medium transition-colors">View Photos</a>`:'<div class="flex-1 px-4 py-2 bg-gray-300 text-gray-500 rounded-lg text-center font-medium cursor-not-allowed">No Photos</div>'}${showStartButton?`<button onclick="updateStatus(${job.rowNumber},'In Progress')" class="flex-1 px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-medium transition-colors">Start Job</button>`:''}${showCompleteButton?`<button onclick="updateStatus(${job.rowNumber},'Completed')" class="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors">Mark Complete</button>`:''}</div></div>`;}).join('');container.innerHTML=`<div class="space-y-4">${jobsHTML}</div>`;}
-        async function updateStatus(rowNumber,newStatus){try{const jobIndex=jobs.findIndex(j=>j.rowNumber===rowNumber);if(jobIndex!==-1){jobs[jobIndex].status=newStatus;renderJobs();}await fetch(CONFIG.SCRIPT_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({rowNumber:rowNumber,status:newStatus,staffName:staffName})});setTimeout(()=>{loadJobs();},1500);}catch(error){console.error('Error updating status:',error);alert('Failed to update status. Please try again or contact your manager.');loadJobs();}}
-        function getStatusColor(status){switch(status){case'In Progress':return'bg-blue-100 text-blue-800';case'Completed':return'bg-green-100 text-green-800';default:return'bg-gray-100 text-gray-800';}}
-        getStaffName();if(validToken){loadJobs();setInterval(()=>{loadJobs();},CONFIG.AUTO_REFRESH_MINUTES*60*1000);}
+        const CONFIG = {
+            SPREADSHEET_ID: '1ThGIfHzYItUgXWmFTgjdezFP7kvGCGfNI0MJzf95dzQ',
+            API_KEY: 'AIzaSyClXOD97fX54o2RNIDsYeOgkOR1Xl3V7eU',
+            SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwbxi62NWMPz3IkiWA0XaqT4AP0xVU8imoU2SFp-sSNF0x1Yh6yJL6SRkPJ0GKrivDL/exec',
+            SHEET_NAME: 'Master Job List',
+            AUTO_REFRESH_MINUTES: 2
+        };
+        const TOKEN_MAP = {
+            'k8m3p9x2w5': 'Ben',
+            'q7n4j1b8r6': 'Antonio',
+            'v2h9f5l3d8': 'Anthony',
+            'z5t6m2k9p4': 'Rudy'
+        };
+        let staffName = '';
+        let currentJob = null;
+        let validToken = false;
+        
+        function getStaffName() {
+            const params = new URLSearchParams(window.location.search);
+            const token = params.get('token');
+            if (token && TOKEN_MAP[token]) {
+                staffName = TOKEN_MAP[token];
+                validToken = true;
+                document.getElementById('staffNameHeader').textContent = staffName + "'s Jobs";
+            } else {
+                validToken = false;
+                document.getElementById('jobsContainer').innerHTML = `
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-12 text-center">
+                        <svg class="w-16 h-16 text-red-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                        </svg>
+                        <h2 class="text-xl font-semibold text-red-800 mb-2">Access Denied</h2>
+                        <p class="text-red-600">Invalid or missing access token. Please use the link provided by your manager.</p>
+                    </div>
+                `;
+            }
+        }
+        
+        async function loadJobs() {
+            if (!validToken) return;
+            const refreshIcon = document.getElementById('refreshIcon');
+            refreshIcon.classList.add('animate-spin');
+            
+            try {
+                const range = `${CONFIG.SHEET_NAME}!A2:K`;
+                const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/${range}?key=${CONFIG.API_KEY}`;
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.values) {
+                    // Filter jobs for this staff member where status is not "Completed"
+                    // Keep them in sheet order (top to bottom)
+                    const staffJobs = data.values
+                        .map((row, index) => ({
+                            rowNumber: index + 2,
+                            date: row[0] || '',
+                            time: row[1] || '',
+                            price: row[2] || '',
+                            name: row[3] || '',
+                            phone: row[4] || '',
+                            email: row[5] || '',
+                            location: row[6] || '',
+                            description: row[7] || '',
+                            assignedTo: row[8] || '',
+                            status: row[9] || 'Assigned',
+                            photosLink: row[10] || ''
+                        }))
+                        .filter(job => {
+                            const assignedTo = job.assignedTo || '';
+                            const status = job.status || 'Assigned';
+                            return assignedTo.toLowerCase() === staffName.toLowerCase() && 
+                                   status.toLowerCase() !== 'completed';
+                        });
+                    
+                    // Show ONLY the first job (top-most incomplete job in sheet order)
+                    currentJob = staffJobs.length > 0 ? staffJobs[0] : null;
+                    renderJob();
+                } else {
+                    currentJob = null;
+                    renderJob();
+                }
+                
+                const now = new Date();
+                document.getElementById('lastUpdate').textContent = `Last updated: ${now.toLocaleTimeString()}`;
+                
+            } catch (error) {
+                console.error('Error loading jobs:', error);
+                document.getElementById('jobsContainer').innerHTML = `
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+                        <p class="text-red-800 font-semibold">Error loading jobs</p>
+                        <p class="text-red-600 text-sm mt-2">${error.message}</p>
+                        <p class="text-red-600 text-sm mt-1">Please check your internet connection and try again.</p>
+                    </div>
+                `;
+            } finally {
+                refreshIcon.classList.remove('animate-spin');
+            }
+        }
+        
+        function renderJob() {
+            const container = document.getElementById('jobsContainer');
+            
+            if (!currentJob) {
+                container.innerHTML = `
+                    <div class="bg-white rounded-lg shadow-sm p-12 text-center">
+                        <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <h2 class="text-xl font-semibold text-gray-700 mb-2">No Active Jobs</h2>
+                        <p class="text-gray-500">You're all caught up! Check back later for new assignments.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const statusColor = getStatusColor(currentJob.status);
+            const showStartButton = currentJob.status === 'Assigned' || currentJob.status === '';
+            const showCompleteButton = currentJob.status === 'In Progress';
+            
+            container.innerHTML = `
+                <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="px-3 py-1 rounded-full text-xs font-medium ${statusColor}">
+                            ${currentJob.status || 'Assigned'}
+                        </span>
+                        <span class="text-sm text-gray-500">Current Job</span>
+                    </div>
+                    
+                    <div class="space-y-2 job-detail text-sm">
+                        <div><span class="font-semibold">Date:</span> ${currentJob.date}</div>
+                        <div><span class="font-semibold">Time:</span> ${currentJob.time}</div>
+                        <div><span class="font-semibold">Price:</span> ${currentJob.price}</div>
+                        <div><span class="font-semibold">Phone Number:</span> ${currentJob.phone}</div>
+                        <div><span class="font-semibold">Name:</span> ${currentJob.name}</div>
+                        <div><span class="font-semibold">Location:</span> ${currentJob.location}</div>
+                        <div class="pt-2">
+                            <span class="font-semibold">Job Description:</span>
+                            <p class="mt-1 text-gray-700 whitespace-pre-wrap">${currentJob.description}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-3 mt-6 pt-4 border-t border-gray-200">
+                        ${currentJob.photosLink ? `
+                            <a href="${currentJob.photosLink}" target="_blank" rel="noopener noreferrer" 
+                               class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-center font-medium transition-colors">
+                                View Photos
+                            </a>
+                        ` : `
+                            <div class="flex-1 px-4 py-2 bg-gray-300 text-gray-500 rounded-lg text-center font-medium cursor-not-allowed">
+                                No Photos
+                            </div>
+                        `}
+                        
+                        ${showStartButton ? `
+                            <button onclick="updateStatus(${currentJob.rowNumber}, 'In Progress')" 
+                                    class="flex-1 px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-medium transition-colors">
+                                Start Job
+                            </button>
+                        ` : ''}
+                        
+                        ${showCompleteButton ? `
+                            <button onclick="updateStatus(${currentJob.rowNumber}, 'Completed')" 
+                                    class="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors">
+                                Mark Complete
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+        
+        async function updateStatus(rowNumber, newStatus) {
+            try {
+                // Update UI immediately
+                if (currentJob && currentJob.rowNumber === rowNumber) {
+                    currentJob.status = newStatus;
+                    renderJob();
+                }
+                
+                // Send update to Google Sheets
+                await fetch(CONFIG.SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        rowNumber: rowNumber,
+                        status: newStatus,
+                        staffName: staffName
+                    })
+                });
+                
+                // Reload jobs after a short delay
+                // If status is "Completed", next job will appear
+                setTimeout(() => {
+                    loadJobs();
+                }, 1500);
+                
+            } catch (error) {
+                console.error('Error updating status:', error);
+                alert('Failed to update status. Please try again or contact your manager.');
+                loadJobs();
+            }
+        }
+        
+        function getStatusColor(status) {
+            switch (status) {
+                case 'In Progress': return 'bg-blue-100 text-blue-800';
+                case 'Completed': return 'bg-green-100 text-green-800';
+                default: return 'bg-gray-100 text-gray-800';
+            }
+        }
+        
+        getStaffName();
+        if (validToken) {
+            loadJobs();
+            setInterval(() => { loadJobs(); }, CONFIG.AUTO_REFRESH_MINUTES * 60 * 1000);
+        }
     </script>
 </body>
 </html>
