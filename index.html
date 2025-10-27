@@ -94,7 +94,7 @@
             'z5t6m2k9p4': 'Rudy'
         };
         let staffName = '';
-        let currentJob = null;
+        let jobs = [];
         let validToken = false;
         let pendingCompletionRow = null;
         
@@ -125,13 +125,15 @@
             refreshIcon.classList.add('animate-spin');
             
             try {
-                const range = `${CONFIG.SHEET_NAME}!A2:M`;
+                const range = `${CONFIG.SHEET_NAME}!A2:N`;
                 const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/${range}?key=${CONFIG.API_KEY}`;
                 const response = await fetch(url);
                 const data = await response.json();
                 
                 if (data.values) {
-                    const staffJobs = data.values
+                    // Filter jobs for this staff member
+                    // Show only jobs that are: assigned to them, not completed, AND released
+                    jobs = data.values
                         .map((row, index) => ({
                             rowNumber: index + 2,
                             date: row[0] || '',
@@ -146,20 +148,23 @@
                             status: row[9] || 'Assigned',
                             photosLink: row[10] || '',
                             amountPaid: row[11] || '',
-                            paymentMethod: row[12] || ''
+                            paymentMethod: row[12] || '',
+                            released: row[13] || ''
                         }))
                         .filter(job => {
                             const assignedTo = job.assignedTo || '';
                             const status = job.status || 'Assigned';
+                            const released = job.released || '';
+                            
                             return assignedTo.toLowerCase() === staffName.toLowerCase() && 
-                                   status.toLowerCase() !== 'completed';
+                                   status.toLowerCase() !== 'completed' &&
+                                   released.toLowerCase() === 'yes';
                         });
                     
-                    currentJob = staffJobs.length > 0 ? staffJobs[0] : null;
-                    renderJob();
+                    renderJobs();
                 } else {
-                    currentJob = null;
-                    renderJob();
+                    jobs = [];
+                    renderJobs();
                 }
                 
                 const now = new Date();
@@ -179,10 +184,10 @@
             }
         }
         
-        function renderJob() {
+        function renderJobs() {
             const container = document.getElementById('jobsContainer');
             
-            if (!currentJob) {
+            if (jobs.length === 0) {
                 container.innerHTML = `
                     <div class="bg-white rounded-lg shadow-sm p-12 text-center">
                         <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -195,60 +200,64 @@
                 return;
             }
             
-            const statusColor = getStatusColor(currentJob.status);
-            const showStartButton = currentJob.status === 'Assigned' || currentJob.status === '';
-            const showCompleteButton = currentJob.status === 'In Progress';
-            
-            container.innerHTML = `
-                <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-                    <div class="flex items-center justify-between mb-4">
-                        <span class="px-3 py-1 rounded-full text-xs font-medium ${statusColor}">
-                            ${currentJob.status || 'Assigned'}
-                        </span>
-                        <span class="text-sm text-gray-500">Current Job</span>
-                    </div>
-                    
-                    <div class="space-y-2 job-detail text-sm">
-                        <div><span class="font-semibold">Date:</span> ${currentJob.date}</div>
-                        <div><span class="font-semibold">Time:</span> ${currentJob.time}</div>
-                        <div><span class="font-semibold">Price:</span> ${currentJob.price}</div>
-                        <div><span class="font-semibold">Phone Number:</span> ${currentJob.phone}</div>
-                        <div><span class="font-semibold">Name:</span> ${currentJob.name}</div>
-                        <div><span class="font-semibold">Location:</span> ${currentJob.location}</div>
-                        <div class="pt-2">
-                            <span class="font-semibold">Job Description:</span>
-                            <p class="mt-1 text-gray-700 whitespace-pre-wrap">${currentJob.description}</p>
+            const jobsHTML = jobs.map((job, index) => {
+                const statusColor = getStatusColor(job.status);
+                const showStartButton = job.status === 'Assigned' || job.status === '';
+                const showCompleteButton = job.status === 'In Progress';
+                
+                return `
+                    <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-200 mb-4">
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="px-3 py-1 rounded-full text-xs font-medium ${statusColor}">
+                                ${job.status || 'Assigned'}
+                            </span>
+                            <span class="text-sm text-gray-500">Job #${index + 1}</span>
+                        </div>
+                        
+                        <div class="space-y-2 job-detail text-sm">
+                            <div><span class="font-semibold">Date:</span> ${job.date}</div>
+                            <div><span class="font-semibold">Time:</span> ${job.time}</div>
+                            <div><span class="font-semibold">Price:</span> ${job.price}</div>
+                            <div><span class="font-semibold">Phone Number:</span> ${job.phone}</div>
+                            <div><span class="font-semibold">Name:</span> ${job.name}</div>
+                            <div><span class="font-semibold">Location:</span> ${job.location}</div>
+                            <div class="pt-2">
+                                <span class="font-semibold">Job Description:</span>
+                                <p class="mt-1 text-gray-700 whitespace-pre-wrap">${job.description}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex gap-3 mt-6 pt-4 border-t border-gray-200">
+                            ${job.photosLink ? `
+                                <a href="${job.photosLink}" target="_blank" rel="noopener noreferrer" 
+                                   class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-center font-medium transition-colors">
+                                    View Photos
+                                </a>
+                            ` : `
+                                <div class="flex-1 px-4 py-2 bg-gray-300 text-gray-500 rounded-lg text-center font-medium cursor-not-allowed">
+                                    No Photos
+                                </div>
+                            `}
+                            
+                            ${showStartButton ? `
+                                <button onclick="updateStatus(${job.rowNumber}, 'In Progress')" 
+                                        class="flex-1 px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-medium transition-colors">
+                                    Start Job
+                                </button>
+                            ` : ''}
+                            
+                            ${showCompleteButton ? `
+                                <button onclick="openPaymentModal(${job.rowNumber})" 
+                                        class="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors">
+                                    Mark Complete
+                                </button>
+                            ` : ''}
                         </div>
                     </div>
-                    
-                    <div class="flex gap-3 mt-6 pt-4 border-t border-gray-200">
-                        ${currentJob.photosLink ? `
-                            <a href="${currentJob.photosLink}" target="_blank" rel="noopener noreferrer" 
-                               class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-center font-medium transition-colors">
-                                View Photos
-                            </a>
-                        ` : `
-                            <div class="flex-1 px-4 py-2 bg-gray-300 text-gray-500 rounded-lg text-center font-medium cursor-not-allowed">
-                                No Photos
-                            </div>
-                        `}
-                        
-                        ${showStartButton ? `
-                            <button onclick="updateStatus(${currentJob.rowNumber}, 'In Progress')" 
-                                    class="flex-1 px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-medium transition-colors">
-                                Start Job
-                            </button>
-                        ` : ''}
-                        
-                        ${showCompleteButton ? `
-                            <button onclick="openPaymentModal(${currentJob.rowNumber})" 
-                                    class="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors">
-                                Mark Complete
-                            </button>
-                        ` : ''}
-                    </div>
-                </div>
-            `;
+                `;
+            }).join('');
+            
+            container.innerHTML = `<div class="space-y-4">${jobsHTML}</div>`;
         }
         
         function openPaymentModal(rowNumber) {
@@ -275,9 +284,11 @@
             closePaymentModal();
             
             try {
-                if (currentJob && currentJob.rowNumber === pendingCompletionRow) {
-                    currentJob.status = 'Completed';
-                    renderJob();
+                // Update UI immediately
+                const jobIndex = jobs.findIndex(j => j.rowNumber === pendingCompletionRow);
+                if (jobIndex !== -1) {
+                    jobs[jobIndex].status = 'Completed';
+                    renderJobs();
                 }
                 
                 await fetch(CONFIG.SCRIPT_URL, {
@@ -306,9 +317,11 @@
         
         async function updateStatus(rowNumber, newStatus) {
             try {
-                if (currentJob && currentJob.rowNumber === rowNumber) {
-                    currentJob.status = newStatus;
-                    renderJob();
+                // Update UI immediately
+                const jobIndex = jobs.findIndex(j => j.rowNumber === rowNumber);
+                if (jobIndex !== -1) {
+                    jobs[jobIndex].status = newStatus;
+                    renderJobs();
                 }
                 
                 await fetch(CONFIG.SCRIPT_URL, {
