@@ -322,10 +322,8 @@
                 
                 console.log('Completion request sent');
                 
-                // Reload after delay to confirm server update
-                setTimeout(() => {
-                    loadJobs();
-                }, 2500);
+                // Don't reload - job already removed from UI
+                // Auto-refresh every 2 minutes will sync any new jobs
                 
             } catch (error) {
                 console.error('Error updating status:', error);
