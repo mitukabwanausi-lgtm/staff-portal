@@ -281,22 +281,37 @@
                 return;
             }
             
+            if (!pendingCompletionRow) {
+                alert('Error: No job selected. Please refresh and try again.');
+                closePaymentModal();
+                return;
+            }
+            
+            const rowToComplete = pendingCompletionRow;
             closePaymentModal();
             
             try {
                 // Remove completed job from UI immediately
-                const jobIndex = jobs.findIndex(j => j.rowNumber === pendingCompletionRow);
+                const jobIndex = jobs.findIndex(j => j.rowNumber === rowToComplete);
                 if (jobIndex !== -1) {
-                    jobs.splice(jobIndex, 1); // Remove from array
+                    jobs.splice(jobIndex, 1);
                     renderJobs();
                 }
                 
-                await fetch(CONFIG.SCRIPT_URL, {
+                console.log('Sending completion:', {
+                    rowNumber: rowToComplete,
+                    status: 'Completed',
+                    amountPaid: amountPaid,
+                    paymentMethod: paymentMethod,
+                    staffName: staffName
+                });
+                
+                const response = await fetch(CONFIG.SCRIPT_URL, {
                     method: 'POST',
                     mode: 'no-cors',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
-                        rowNumber: pendingCompletionRow,
+                        rowNumber: rowToComplete,
                         status: 'Completed',
                         amountPaid: amountPaid,
                         paymentMethod: paymentMethod,
@@ -304,7 +319,9 @@
                     })
                 });
                 
-                // Reload after longer delay to confirm server update
+                console.log('Completion request sent');
+                
+                // Reload after delay to confirm server update
                 setTimeout(() => {
                     loadJobs();
                 }, 2500);
@@ -313,6 +330,8 @@
                 console.error('Error updating status:', error);
                 alert('Failed to complete job. Please try again or contact your manager.');
                 loadJobs();
+            } finally {
+                pendingCompletionRow = null;
             }
         }
         
