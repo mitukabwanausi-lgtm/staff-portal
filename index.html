@@ -138,20 +138,21 @@
                     jobs = data.values
                         .map((row, index) => ({
                             rowNumber: index + 2,
-                            date: row[0] || '',
-                            time: row[1] || '',
-                            price: row[2] || '',
-                            name: row[3] || '',
-                            phone: row[4] || '',
-                            email: row[5] || '',
-                            location: row[6] || '',
-                            description: row[7] || '',
-                            assignedTo: row[8] || '',
-                            status: row[9] || 'Assigned',
-                            photosLink: row[10] || '',
-                            amountPaid: row[11] || '',
-                            paymentMethod: row[12] || '',
-                            released: row[13] || ''
+                            date: row[0] || '',           // A - Date ✅
+                            startTime: row[1] || '',      // B - Start Time ✅
+                            endTime: row[2] || '',        // C - End Time ✅
+                            price: row[3] || '',          // D - Price ✅
+                            name: row[4] || '',           // E - Client Name ✅
+                            phone: row[5] || '',          // F - Phone ✅
+                            email: row[6] || '',          // G - Email ✅
+                            location: row[7] || '',       // H - Address ✅
+                            description: row[8] || '',    // I - Job Description ✅
+                            assignedTo: row[9] || '',     // J - Assigned To ✅ FIXED
+                            status: row[10] || 'Assigned',// K - Status ✅ FIXED
+                            photosLink: row[11] || '',    // L - Photos Link ✅
+                            amountPaid: row[12] || '',    // M - Amount Paid ✅
+                            paymentMethod: row[13] || '', // N - Payment Method ✅
+                            released: row[14] || ''
                         }))
                         .filter(job => {
                             const assignedTo = job.assignedTo || '';
