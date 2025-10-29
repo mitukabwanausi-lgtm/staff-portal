@@ -98,6 +98,7 @@
         let jobs = [];
         let validToken = false;
         let pendingCompletionRow = null;
+        let completedJobRows = new Set(); // Track locally completed jobs
         
         function getStaffName() {
             const params = new URLSearchParams(window.location.search);
@@ -126,7 +127,7 @@
             refreshIcon.classList.add('animate-spin');
             
             try {
-                const range = `${CONFIG.SHEET_NAME}!A2:N`;
+                const range = `${CONFIG.SHEET_NAME}!A2:O`;
                 const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/${range}?key=${CONFIG.API_KEY}`;
                 const response = await fetch(url);
                 const data = await response.json();
@@ -156,6 +157,11 @@
                             const assignedTo = job.assignedTo || '';
                             const status = job.status || 'Assigned';
                             const released = job.released || '';
+                            
+                            // Filter out jobs that are completed OR locally marked as completed
+                            if (completedJobRows.has(job.rowNumber)) {
+                                return false; // Hide jobs we just completed locally
+                            }
                             
                             return assignedTo.toLowerCase() === staffName.toLowerCase() && 
                                    status.toLowerCase() !== 'completed' &&
@@ -292,6 +298,9 @@
             closePaymentModal();
             
             try {
+                // Add to local completed cache
+                completedJobRows.add(rowToComplete);
+                
                 // Remove completed job from UI immediately
                 const jobIndex = jobs.findIndex(j => j.rowNumber === rowToComplete);
                 if (jobIndex !== -1) {
